@@ -22,7 +22,7 @@ extern "C"
                 // "game" class if that suits your needs. Remember to change all instances of userData
                 // if you change the class here as a reinterpret_cast is dangerous this in the
                 // android_main function and the APP_CMD_TERM_WINDOW handler case.
-                vApp->userData = new hiveVG::CRenderer(vApp);
+                vApp->userData = new hiveVG::CSequenceFrameRenderer(vApp);
                 break;
             case APP_CMD_TERM_WINDOW:
                 // The window is being destroyed. Use this to clean up your userData to avoid leaking
@@ -31,7 +31,7 @@ extern "C"
                 // We have to check if userData is assigned just in case this comes in really quickly
                 if (vApp->userData)
                 {
-                    auto *pRenderer = reinterpret_cast<hiveVG::CRenderer*>(vApp->userData);
+                    auto *pRenderer = reinterpret_cast<hiveVG::CSequenceFrameRenderer*>(vApp->userData);
                     vApp->userData = nullptr;
                     delete pRenderer;
                 }
@@ -60,7 +60,6 @@ extern "C"
     void android_main(struct android_app* vApp)
     {
         vApp->onAppCmd = handleCmd;
-
         // Set input event filters (set it to NULL if the app wants to process all inputs).
         // Note that for key inputs, this example uses the default default_key_filter()
         // implemented in android_native_app_glue.c.
@@ -102,9 +101,12 @@ extern "C"
 
             if (vApp->userData)
             {
-//                auto *pRenderer = reinterpret_cast<hiveVG::CRenderer*>(vApp->userData);
-//                pRenderer->render();
+/*                auto *pRenderer = reinterpret_cast<hiveVG::CRenderer*>(vApp->userData);
+                pRenderer->render();*/
+                std::string TexturePath = "android_robot.png";
+
                 auto *pSeqFrameRenderer = reinterpret_cast<hiveVG::CSequenceFrameRenderer*>(vApp->userData);
+                pSeqFrameRenderer->loadTexture(TexturePath);
                 pSeqFrameRenderer->render();
             }
         } while (!vApp->destroyRequested);

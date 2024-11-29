@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
 
@@ -13,6 +14,7 @@ namespace hiveVG
         CSequenceFrameRenderer(android_app *vApp);
         virtual ~CSequenceFrameRenderer();
 
+        void loadTexture(const std::string& vTexturePath);
         void render();
 
     private:
@@ -21,12 +23,11 @@ namespace hiveVG
         static GLuint __linkProgram(GLuint vVertShaderHandle, GLuint vFragShaderHandle);
         void          __createQuadVAO();
         void          __createProgram();
-        void          __loadTexture(const char* vTexturePath);
 
-        android_app* m_pApp;
+        android_app* m_pApp{};
         GLuint       m_ProgramHandle     = 0;
         GLuint       m_QuadVAOHandle     = 0;
-        GLuint       m_QuadTextureHandle = 0;
+        GLuint       m_TextureHandle     = 0;
         EGLDisplay   m_Display           = EGL_NO_DISPLAY;
         EGLSurface   m_Surface           = EGL_NO_SURFACE;
         EGLContext   m_Context           = EGL_NO_CONTEXT;

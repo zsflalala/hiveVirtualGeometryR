@@ -5,18 +5,18 @@
 #include <vector>
 #include <cassert>
 #include <android/imagedecoder.h>
+#include <android/asset_manager.h>
 #include "stb_image.h"
 #include "Common.h"
+#include "TextureAsset.h"
 
 namespace hiveVG
 {
-    CSequenceFrameRenderer::CSequenceFrameRenderer(android_app *vApp)
+    CSequenceFrameRenderer::CSequenceFrameRenderer(android_app *vApp) : m_pApp(vApp)
     {
         __initRenderer();
         __createProgram();
         __createQuadVAO();
-//        const char* TexturePath = "../assets/SnowSequenceFrame.png";
-//        __loadTexture(TexturePath);
     }
 
     CSequenceFrameRenderer::~CSequenceFrameRenderer()
@@ -43,18 +43,20 @@ namespace hiveVG
 
     void CSequenceFrameRenderer::render()
     {
+        assert(m_TextureHandle != 0);
         glClearColor(1.0f,0.2f,0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-//        glEnable(GL_BLEND);
-//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glBindTexture(GL_TEXTURE_2D, m_TextureHandle);
         glUseProgram(m_ProgramHandle);
-//        glBindTexture(GL_TEXTURE_2D, m_QuadTextureHandle);
-//        glUniform1i(glGetUniformLocation(m_ProgramHandle, "texture1"), 0);
+        glUniform1i(glGetUniformLocation(m_ProgramHandle, "texture1"), 0);
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         // Present the rendered image. This is an implicit glFlush.
         auto SwapResult = eglSwapBuffers(m_Display, m_Surface);
         assert(SwapResult == EGL_TRUE);
+
     }
 
     void CSequenceFrameRenderer::__initRenderer()
@@ -143,6 +145,7 @@ namespace hiveVG
 
     GLuint CSequenceFrameRenderer::__linkProgram(GLuint vVertShaderHandle, GLuint vFragShaderHandle)
     {
+        assert(vVertShaderHandle != 0 && vFragShaderHandle != 0);
         GLuint ProgramHandle = glCreateProgram();
         if (ProgramHandle != 0)
         {
@@ -164,11 +167,11 @@ namespace hiveVG
     void CSequenceFrameRenderer::__createQuadVAO()
     {
         const float pVertices[] = {
-                // positions   // texCoords
-                -1.0f, -1.0f,  0.0f, 0.0f, // bottom left
-                1.0f, -1.0f,  1.0f, 0.0f, // bottom right
-                1.0f,  1.0f,  1.0f, 1.0f, // top right
-                -1.0f,  1.0f,  0.0f, 1.0f  // top left
+                // positions                // texCoords
+                -0.5f, -0.5f,  0.0f, 0.0f, // bottom left
+                0.5f, -0.5f,  1.0f, 0.0f, // bottom right
+                0.5f,  0.5f,  1.0f, 1.0f, // top right
+                -0.5f,  0.5f,  0.0f, 1.0f  // top left
         };
 
         const unsigned int pIndices[] = {
@@ -208,12 +211,11 @@ namespace hiveVG
         const char FragShaderCode[] =
                 "#version 300 es \n"
                 "precision mediump float;\n"
-                "out vec4 FragColor;\n"
                 "in vec2 TexCoord;\n"
-//                "uniform sampler2D texture1;\n"
+                "out vec4 FragColor;\n"
+                "uniform sampler2D texture1;\n"
                 "void main() { \n"
-//                "FragColor = texture(texture1, TexCoord);\n"
-                "FragColor = vec4(1.0, 1.0, 0.2, 1.0);\n"
+                "FragColor = texture(texture1, TexCoord);\n"
                 "}\n";
 
         GLuint VertShaderHandle = __compileShader(GL_VERTEX_SHADER, VertShaderCode);
@@ -231,27 +233,16 @@ namespace hiveVG
         m_ProgramHandle = __linkProgram(VertShaderHandle, FragShaderHandle);
     }
 
-    void CSequenceFrameRenderer::__loadTexture(const char* vTexturePath)
+    void CSequenceFrameRenderer::loadTexture(const std::string& vTexturePath)
     {
-        //stbi_set_flip_vertically_on_load(1);
-        int Width, Height, Channels;
-        unsigned char* pData = stbi_load(vTexturePath, &Width, &Height, &Channels, 0);
-
-        if (!pData)
+        if(m_TextureHandle != 0) return;
+        auto pLoadedTextureID = CTextureAsset::loadAsset(m_pApp->activity->assetManager, vTexturePath);
+        if (!pLoadedTextureID)
         {
             LOG_ERROR(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Failed to load texture");
             return ;
         }
-
-        glGenTextures(1, &m_QuadTextureHandle);
-        glBindTexture(GL_TEXTURE_2D, m_QuadTextureHandle);
-        glTexImage2D(GL_TEXTURE_2D, 0, Channels == 4 ? GL_RGBA : GL_RGB, Width, Height, 0, Channels == 4 ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, pData);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        stbi_image_free(pData);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        m_TextureHandle = pLoadedTextureID->getTextureID();
+        LOG_INFO(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Load Texture Successfully into TextureID %d", m_TextureHandle);
     }
 }
