@@ -18,9 +18,9 @@ namespace hiveVG
         m_initResources.clear();
         __initRenderer();
         __initAlgorithm();
-        __createProgram(VertShaderCode,FragShaderCode);
+        //__createProgram(VertShaderCode,FragShaderCode);
         __createScreenVAO();
-        __loadTexture(TexturePathBackground);
+        //__loadTexture(TexturePathBackground);
     }
 
     CSequenceFrameRenderer::~CSequenceFrameRenderer()
@@ -114,8 +114,8 @@ namespace hiveVG
     {
 //        __createProgram(VertShaderCode,FragShaderCode);
         GLuint NearSnowTextureHandle    = __loadTexture("SmallnearSnow.png");
-        GLuint FarSnowTextureHandle     = __loadTexture("SmallnearSnow.png");
-        GLuint CartoonTextureHandle     = __loadTexture("house2.png");
+        GLuint FarSnowTextureHandle     = __loadTexture("Textures/background4.jpg");
+        GLuint CartoonTextureHandle     = __loadTexture("Textures/house2.png");
         GLuint BackgroundTextureHandle  = __loadTexture("Textures/background4.jpg");
 
         GLuint NearSnowShaderProgram    = __createProgram(SnowVertexShaderSource, SnowFragmentShaderSource);
@@ -194,12 +194,13 @@ namespace hiveVG
             LOG_ERROR(HIVE_LOGTAG, "Compile FragmentShader Failed");
             return 0;
         }
-        return m_ProgramHandle = __linkProgram(VertShaderHandle, FragShaderHandle);
+        m_ProgramHandle = __linkProgram(VertShaderHandle, FragShaderHandle);
+        LOG_INFO(HIVE_LOGTAG, "Create Shader Program Succeeded.");
+        return m_ProgramHandle;
     }
 
     GLuint CSequenceFrameRenderer::__loadTexture(const std::string& vTexturePath)
     {
-        if(m_pTextureHandle != nullptr) return 0;
         m_pTextureHandle = CTextureAsset::loadAsset(m_pApp->activity->assetManager, vTexturePath);
         if (m_pTextureHandle == nullptr)
         {
@@ -274,43 +275,45 @@ namespace hiveVG
         {
             m_LastFrameTime = CurrentTime;
             m_CurrentFrame = (m_CurrentFrame + 1) % (ROWS * COLS);
+            LOG_INFO(HIVE_LOGTAG,"Current Frame: %d", m_CurrentFrame);
         }
 
-        glClearColor(0.3f, 0.2f, 0.3f, 1.0f);
+        glClearColor(1.0f,1.0f,1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(m_initResources[7]);
-        glUniform1i(glGetUniformLocation(m_initResources[7], "quadTexture"), 0);
-        glBindVertexArray(m_QuadVAOHandle);
-        glBindTexture(GL_TEXTURE_2D, m_initResources[3]);
+//        glUniform1i(glGetUniformLocation(m_initResources[7], "quadTexture"), 0);
+
         glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_initResources[3]);
+        glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         int  Row = m_CurrentFrame / COLS;
         int  Col = m_CurrentFrame % COLS;
         float U0 = Col / (float)COLS;
         float V0 = Row / (float)ROWS;
         float U1 = (Col + 1) / (float)COLS;
         float V1 = (Row + 1) / (float)ROWS;
-
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         glUseProgram(m_initResources[5]);
         glUniform2f(glGetUniformLocation(m_initResources[5], "uvOffset"), U0, V0);
         glUniform2f(glGetUniformLocation(m_initResources[5], "uvScale"), U1 - U0, V1 - V0);
-        glBindVertexArray(m_QuadVAOHandle);
-        glUniform1i(glGetUniformLocation(m_initResources[5], "snowTexture"), 0);
-        glBindTexture(GL_TEXTURE_2D, m_initResources[1]);
+
+//        glUniform1i(glGetUniformLocation(m_initResources[5], "snowTexture"), 0);
         glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_initResources[1]);
+        glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(m_initResources[6]);
-        glUniform1i(glGetUniformLocation(m_initResources[6], "quadTexture"), 0);
-        glBindVertexArray(m_QuadVAOHandle);
-        glBindTexture(GL_TEXTURE_2D, m_initResources[2]);
+//        glUniform1i(glGetUniformLocation(m_initResources[6], "quadTexture"), 0);
         glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_initResources[2]);
+        glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         glEnable(GL_BLEND);
@@ -318,10 +321,10 @@ namespace hiveVG
         glUseProgram(m_initResources[4]);
         glUniform2f(glGetUniformLocation(m_initResources[4], "uvOffset"), U0, V0);
         glUniform2f(glGetUniformLocation(m_initResources[4], "uvScale"), U1 - U0, V1 - V0);
-        glBindVertexArray(m_QuadVAOHandle);
-        glUniform1i(glGetUniformLocation(m_initResources[4], "snowTexture"), 0);
-        glBindTexture(GL_TEXTURE_2D, m_initResources[0]);
+//        glUniform1i(glGetUniformLocation(m_initResources[4], "snowTexture"), 0);
         glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_initResources[0]);
+        glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
 

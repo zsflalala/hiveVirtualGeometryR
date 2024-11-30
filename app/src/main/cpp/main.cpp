@@ -107,7 +107,7 @@ extern "C"
 //                hiveVG::TexturePath = "Textures/background4.jpg";
                 auto *pSeqFrameRenderer = reinterpret_cast<hiveVG::CSequenceFrameRenderer*>(vApp->userData);
 //                pSeqFrameRenderer->loadTexture(TexturePath);
-                pSeqFrameRenderer->render();
+                pSeqFrameRenderer->renderBlendingSnow();
             }
         } while (!vApp->destroyRequested);
     }
