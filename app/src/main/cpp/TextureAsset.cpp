@@ -38,20 +38,6 @@ CTextureAsset::loadAsset(AAssetManager *vAssetManager, const std::string &vAsset
             upAndroidImageData->size());
     assert(decodeResult == ANDROID_IMAGE_DECODER_SUCCESS);
 
-
-    for (int y = 613; y < 614; ++y)
-    {
-        for (int x = 0; x < width; ++x)
-        {
-            int index = (y * width + x) * 4;
-            auto r = upAndroidImageData.get()->at(index);
-            auto g = upAndroidImageData.get()->at(index+1);
-            auto b = upAndroidImageData.get()->at(index+2);
-            auto a = upAndroidImageData.get()->at(index+3);
-            LOG_INFO(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "%d %d, %d %d %d %d",x,y,r,g,b,a);
-        }
-    }
-
     // Get an opengl texture
     GLuint TextureId;
     glGenTextures(1, &TextureId);
@@ -80,6 +66,11 @@ CTextureAsset::loadAsset(AAssetManager *vAssetManager, const std::string &vAsset
     // generate mip levels. Not really needed for 2D, but good to do
     glGenerateMipmap(GL_TEXTURE_2D);
 
+bool isValid = glIsTexture(TextureId) == GL_TRUE;
+
+    if(!isValid){
+    LOG_ERROR(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Texture type error");
+    }
     // cleanup helpers
     AImageDecoder_delete(pAndroidDecoder);
     AAsset_close(pPicAsset);

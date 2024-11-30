@@ -6,6 +6,7 @@
 
 struct android_app;
 
+class CTextureAsset;
 namespace hiveVG
 {
     class CSequenceFrameRenderer
@@ -27,10 +28,11 @@ namespace hiveVG
         android_app* m_pApp{};
         GLuint       m_ProgramHandle     = 0;
         GLuint       m_QuadVAOHandle     = 0;
-        GLuint       m_TextureHandle     = 0;
         EGLDisplay   m_Display           = EGL_NO_DISPLAY;
         EGLSurface   m_Surface           = EGL_NO_SURFACE;
         EGLContext   m_Context           = EGL_NO_CONTEXT;
+
+        std::shared_ptr<CTextureAsset> m_pTextureHandle = nullptr;
     };
 
 } // hiveVG

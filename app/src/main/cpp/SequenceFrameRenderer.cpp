@@ -6,7 +6,6 @@
 #include <cassert>
 #include <android/imagedecoder.h>
 #include <android/asset_manager.h>
-#include "stb_image.h"
 #include "Common.h"
 #include "TextureAsset.h"
 
@@ -41,22 +40,39 @@ namespace hiveVG
         glDeleteProgram(m_ProgramHandle);
     }
 
+    void CSequenceFrameRenderer::loadTexture(const std::string& vTexturePath)
+    {
+        if(m_pTextureHandle != nullptr) return;
+        m_pTextureHandle = CTextureAsset::loadAsset(m_pApp->activity->assetManager, vTexturePath);
+        if (m_pTextureHandle == nullptr)
+        {
+            LOG_ERROR(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Failed to load texture");
+            return ;
+        }
+        LOG_INFO(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Load Texture Successfully into TextureID %d", m_pTextureHandle->getTextureID());
+    }
+
     void CSequenceFrameRenderer::render()
     {
-        assert(m_TextureHandle != 0);
-        glClearColor(1.0f,0.2f,0.3f, 1.0f);
+        glUseProgram(m_ProgramHandle);
+
+        glClearColor(0.4f,0.2f,0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glBindTexture(GL_TEXTURE_2D, m_TextureHandle);
-        glUseProgram(m_ProgramHandle);
-        glUniform1i(glGetUniformLocation(m_ProgramHandle, "texture1"), 0);
+
+        assert(m_pTextureHandle);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_pTextureHandle->getTextureID());
+        if(eglGetError() != EGL_SUCCESS)
+            LOG_ERROR(hiveVG::TAG_KEYWORD::RENDERER_TAG, "GL Error Code %d has description", eglGetError());
+
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         // Present the rendered image. This is an implicit glFlush.
         auto SwapResult = eglSwapBuffers(m_Display, m_Surface);
         assert(SwapResult == EGL_TRUE);
-
     }
 
     void CSequenceFrameRenderer::__initRenderer()
@@ -131,9 +147,9 @@ namespace hiveVG
         {
             glShaderSource(ShaderHandle, 1, &vShaderCode, nullptr);
             glCompileShader(ShaderHandle);
-            GLint Result = GL_FALSE;
-            glGetShaderiv(ShaderHandle, GL_COMPILE_STATUS, &Result);
-            if (Result == GL_FALSE)
+            GLint CompileStatus = GL_FALSE;
+            glGetShaderiv(ShaderHandle, GL_COMPILE_STATUS, &CompileStatus);
+            if (CompileStatus == GL_FALSE)
             {
                 glDeleteShader(ShaderHandle);
                 return 0;
@@ -152,9 +168,9 @@ namespace hiveVG
             glAttachShader(ProgramHandle, vVertShaderHandle);
             glAttachShader(ProgramHandle, vFragShaderHandle);
             glLinkProgram(ProgramHandle);
-            GLint Result = GL_FALSE;
-            glGetProgramiv(ProgramHandle, GL_LINK_STATUS, &Result);
-            if (Result == GL_FALSE)
+            GLint LinkStatus = GL_FALSE;
+            glGetProgramiv(ProgramHandle, GL_LINK_STATUS, &LinkStatus);
+            if (LinkStatus == GL_FALSE)
             {
                 glDeleteProgram(ProgramHandle);
                 return 0;
@@ -164,59 +180,32 @@ namespace hiveVG
         return 0;
     }
 
-    void CSequenceFrameRenderer::__createQuadVAO()
-    {
-        const float pVertices[] = {
-                // positions                // texCoords
-                -0.5f, -0.5f,  0.0f, 0.0f, // bottom left
-                0.5f, -0.5f,  1.0f, 0.0f, // bottom right
-                0.5f,  0.5f,  1.0f, 1.0f, // top right
-                -0.5f,  0.5f,  0.0f, 1.0f  // top left
-        };
-
-        const unsigned int pIndices[] = {
-                0, 1, 2,
-                0, 2, 3
-        };
-
-        glGenVertexArrays(1, &m_QuadVAOHandle);
-        glBindVertexArray(m_QuadVAOHandle);
-
-        GLuint QuadVBO, QuadEBO;
-        glGenBuffers(1, &QuadVBO);
-        glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(pVertices), pVertices, GL_DYNAMIC_DRAW);
-
-        glGenBuffers(1, &QuadEBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, QuadEBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(pIndices), pIndices, GL_STATIC_DRAW);
-
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-    }
-
     void CSequenceFrameRenderer::__createProgram()
     {
-        const char VertShaderCode[] =
-                "#version 300 es \n"
-                "layout (location = 0) in vec2 aPos;\n"
-                "layout (location = 1) in vec2 aTexCoord;\n"
-                "out vec2 TexCoord;\n"
-                "void main() { \n"
-                "gl_Position = vec4(aPos, 0.0, 1.0);\n"
-                "TexCoord = aTexCoord;\n"
-                "}\n";
-        const char FragShaderCode[] =
-                "#version 300 es \n"
-                "precision mediump float;\n"
-                "in vec2 TexCoord;\n"
-                "out vec4 FragColor;\n"
-                "uniform sampler2D texture1;\n"
-                "void main() { \n"
-                "FragColor = texture(texture1, TexCoord);\n"
-                "}\n";
+        const char VertShaderCode[] = R"vertex(#version 300 es
+                layout (location = 0) in vec2 inPosition;
+                layout (location = 1) in vec2 inUV;
+
+                out vec2 fragUV;
+
+                void main() {
+                    fragUV = inUV;
+                    gl_Position = vec4(inPosition, 0.0, 1.0);
+                }
+                )vertex";
+        const char FragShaderCode[] = R"fragment(#version 300 es
+                precision mediump float;
+
+                in vec2 fragUV;
+
+                uniform sampler2D uTexture;
+
+                out vec4 outColor;
+
+                void main() {
+                    outColor = texture(uTexture, fragUV);
+                }
+                )fragment";
 
         GLuint VertShaderHandle = __compileShader(GL_VERTEX_SHADER, VertShaderCode);
         if (VertShaderHandle == 0)
@@ -233,16 +222,36 @@ namespace hiveVG
         m_ProgramHandle = __linkProgram(VertShaderHandle, FragShaderHandle);
     }
 
-    void CSequenceFrameRenderer::loadTexture(const std::string& vTexturePath)
+    void CSequenceFrameRenderer::__createQuadVAO()
     {
-        if(m_TextureHandle != 0) return;
-        auto pLoadedTextureID = CTextureAsset::loadAsset(m_pApp->activity->assetManager, vTexturePath);
-        if (!pLoadedTextureID)
-        {
-            LOG_ERROR(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Failed to load texture");
-            return ;
-        }
-        m_TextureHandle = pLoadedTextureID->getTextureID();
-        LOG_INFO(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Load Texture Successfully into TextureID %d", m_TextureHandle);
+        const float Vertices[] = {
+                // positions                // texCoords
+                0.5f, 0.5f,  0.0f, 0.0f, // bottom left
+                -0.5f, 0.5f,  1.0f, 0.0f, // bottom right
+                -0.5f,  -0.5f,  1.0f, 1.0f, // top right
+                0.5f,  - 0.5f,  0.0f, 1.0f  // top left
+        };
+
+        const u_int Indices[] = {
+                0, 1, 2,
+                0, 2, 3
+        };
+
+        glGenVertexArrays(1, &m_QuadVAOHandle);
+        glBindVertexArray(m_QuadVAOHandle);
+
+        GLuint QuadVBO, QuadEBO;
+        glGenBuffers(1, &QuadVBO);
+        glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_DYNAMIC_DRAW);
+
+        glGenBuffers(1, &QuadEBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, QuadEBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
+
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+        glEnableVertexAttribArray(1);
     }
 }
