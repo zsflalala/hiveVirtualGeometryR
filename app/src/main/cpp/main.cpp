@@ -66,6 +66,9 @@ extern "C"
         // Set filters for touch events in your application
         android_app_set_motion_event_filter(vApp, motion_event_filter_func);
 
+        int ROWS = 8, COLS = 16;
+        int CurrentFrame = 0;
+        const double FrameTime = 1.0 / 24.0; // 24 FPS
         do
         {
             // Process all pending events before running game logic.
@@ -101,12 +104,9 @@ extern "C"
 
             if (vApp->userData)
             {
-/*                auto *pRenderer = reinterpret_cast<hiveVG::CRenderer*>(vApp->userData);
-                pRenderer->render();*/
-                std::string TexturePath = "android_robot.png";
-
+//                hiveVG::TexturePath = "Textures/background4.jpg";
                 auto *pSeqFrameRenderer = reinterpret_cast<hiveVG::CSequenceFrameRenderer*>(vApp->userData);
-                pSeqFrameRenderer->loadTexture(TexturePath);
+//                pSeqFrameRenderer->loadTexture(TexturePath);
                 pSeqFrameRenderer->render();
             }
         } while (!vApp->destroyRequested);

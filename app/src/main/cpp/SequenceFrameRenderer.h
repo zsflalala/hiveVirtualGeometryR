@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
 
@@ -15,24 +16,29 @@ namespace hiveVG
         CSequenceFrameRenderer(android_app *vApp);
         virtual ~CSequenceFrameRenderer();
 
-        void loadTexture(const std::string& vTexturePath);
         void render();
+        void renderBlendingSnow();
 
     private:
-        void          __initRenderer();
-        static GLuint __compileShader(GLenum vType, const char *vShaderCode);
-        static GLuint __linkProgram(GLuint vVertShaderHandle, GLuint vFragShaderHandle);
-        void          __createQuadVAO();
-        void          __createProgram();
+        void            __initRenderer();
+        void            __initAlgorithm();
+        GLuint          __loadTexture(const std::string& vTexturePath);
+        static GLuint   __compileShader(GLenum vType, const char *vShaderCode);
+        static GLuint   __linkProgram(GLuint vVertShaderHandle, GLuint vFragShaderHandle);
+        void            __createScreenVAO();
+        GLuint          __createProgram(const char* vVertexShaderCode, const char* vFragmentShaderCode);
+        double          __getCurrentTime();
 
-        android_app* m_pApp{};
-        GLuint       m_ProgramHandle     = 0;
-        GLuint       m_QuadVAOHandle     = 0;
-        EGLDisplay   m_Display           = EGL_NO_DISPLAY;
-        EGLSurface   m_Surface           = EGL_NO_SURFACE;
-        EGLContext   m_Context           = EGL_NO_CONTEXT;
-
-        std::shared_ptr<CTextureAsset> m_pTextureHandle = nullptr;
+        android_app*                    m_pApp{};
+        GLuint                          m_ProgramHandle     = 0;
+        GLuint                          m_QuadVAOHandle     = 0;
+        std::shared_ptr<CTextureAsset>  m_pTextureHandle    = nullptr;
+        EGLDisplay                      m_Display           = EGL_NO_DISPLAY;
+        EGLSurface                      m_Surface           = EGL_NO_SURFACE;
+        EGLContext                      m_Context           = EGL_NO_CONTEXT;
+        std::vector<GLuint>             m_initResources;
+        double                          m_LastFrameTime     = 0.0;
+        int                             m_CurrentFrame      = 0;
     };
 
 } // hiveVG
