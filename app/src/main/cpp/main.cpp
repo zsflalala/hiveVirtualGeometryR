@@ -67,8 +67,6 @@ extern "C"
         android_app_set_motion_event_filter(vApp, motion_event_filter_func);
 
         int ROWS = 8, COLS = 16;
-        int CurrentFrame = 0;
-        const double FrameTime = 1.0 / 24.0; // 24 FPS
         do
         {
             // Process all pending events before running game logic.
@@ -106,8 +104,8 @@ extern "C"
             {
 //                hiveVG::TexturePath = "Textures/background4.jpg";
                 auto *pSeqFrameRenderer = reinterpret_cast<hiveVG::CSequenceFrameRenderer*>(vApp->userData);
-//                pSeqFrameRenderer->loadTexture(TexturePath);
-                pSeqFrameRenderer->renderBlendingSnow();
+//                pSeqFrameRenderer->render();
+                pSeqFrameRenderer->renderBlendingSnow(ROWS,COLS);
             }
         } while (!vApp->destroyRequested);
     }

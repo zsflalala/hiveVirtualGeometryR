@@ -28,7 +28,6 @@ CTextureAsset::loadAsset(AAssetManager *vAssetManager, const std::string &vAsset
     auto width = AImageDecoderHeaderInfo_getWidth(pAndroidHeader);
     auto height = AImageDecoderHeaderInfo_getHeight(pAndroidHeader);
     auto stride = AImageDecoder_getMinimumStride(pAndroidDecoder);
-    auto channelType = (stride / width == 4) ? GL_RGBA : GL_RGB;
     // Get the bitmap data of the image
     auto upAndroidImageData = std::make_unique<std::vector<uint8_t>>(height * stride);
     auto decodeResult = AImageDecoder_decodeImage(
@@ -54,28 +53,27 @@ CTextureAsset::loadAsset(AAssetManager *vAssetManager, const std::string &vAsset
     glTexImage2D(
             GL_TEXTURE_2D, // target
             0, // mip level
-            channelType, // internal format, often advisable to use BGR
+            GL_RGBA, // internal format, often advisable to use BGR
             width, // width of the texture
             height, // height of the texture
             0, // border (always 0)
-            channelType, // format
+            GL_RGBA, // format
             GL_UNSIGNED_BYTE, // type
             upAndroidImageData->data() // Data to upload
     );
-    LOG_INFO(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "%d",glGetError());
     // generate mip levels. Not really needed for 2D, but good to do
     glGenerateMipmap(GL_TEXTURE_2D);
 
-bool isValid = glIsTexture(TextureId) == GL_TRUE;
-
-    if(!isValid){
-    LOG_ERROR(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Texture type error");
+    bool isValid = (glIsTexture(TextureId) == GL_TRUE);
+    if (!isValid)
+    {
+        LOG_ERROR(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Texture type error");
+        return nullptr;
     }
     // cleanup helpers
     AImageDecoder_delete(pAndroidDecoder);
     AAsset_close(pPicAsset);
 
-    // Create a shared pointer so it can be cleaned up easily/automatically
     return std::shared_ptr<CTextureAsset>(new CTextureAsset(TextureId));
 }
 

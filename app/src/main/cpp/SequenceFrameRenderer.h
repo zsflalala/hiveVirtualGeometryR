@@ -17,7 +17,7 @@ namespace hiveVG
         virtual ~CSequenceFrameRenderer();
 
         void render();
-        void renderBlendingSnow();
+        void renderBlendingSnow(const int vRow, const int vColumn);
 
     private:
         void            __initRenderer();
@@ -27,18 +27,23 @@ namespace hiveVG
         static GLuint   __linkProgram(GLuint vVertShaderHandle, GLuint vFragShaderHandle);
         void            __createScreenVAO();
         GLuint          __createProgram(const char* vVertexShaderCode, const char* vFragmentShaderCode);
-        double          __getCurrentTime();
+        static double   __getCurrentTime();
+        static bool     __checkGLError();
 
         android_app*                    m_pApp{};
         GLuint                          m_ProgramHandle     = 0;
         GLuint                          m_QuadVAOHandle     = 0;
-        std::shared_ptr<CTextureAsset>  m_pTextureHandle    = nullptr;
         EGLDisplay                      m_Display           = EGL_NO_DISPLAY;
         EGLSurface                      m_Surface           = EGL_NO_SURFACE;
         EGLContext                      m_Context           = EGL_NO_CONTEXT;
-        std::vector<GLuint>             m_initResources;
-        double                          m_LastFrameTime     = 0.0;
-        int                             m_CurrentFrame      = 0;
+        std::vector<GLuint> m_initResources;
+        double                  m_NearLastFrameTime = 0.0;
+        double                  m_FarLastFrameTime  = 0.0;
+        int                     m_NearCurrentFrame  = 0;
+        int                             m_FarCurrentFrame   = 0;
+        const int                       m_FramePerSecond    = 60;
+
+        std::vector<std::shared_ptr<CTextureAsset> > m_pTextureHandles;
     };
 
 } // hiveVG

@@ -18,9 +18,9 @@ namespace hiveVG
         m_initResources.clear();
         __initRenderer();
         __initAlgorithm();
-        //__createProgram(VertShaderCode,FragShaderCode);
         __createScreenVAO();
-        //__loadTexture(TexturePathBackground);
+        m_NearLastFrameTime = __getCurrentTime();
+        m_FarLastFrameTime = __getCurrentTime();
     }
 
     CSequenceFrameRenderer::~CSequenceFrameRenderer()
@@ -113,9 +113,9 @@ namespace hiveVG
     void CSequenceFrameRenderer::__initAlgorithm()
     {
 //        __createProgram(VertShaderCode,FragShaderCode);
-        GLuint NearSnowTextureHandle    = __loadTexture("SmallnearSnow.png");
-        GLuint FarSnowTextureHandle     = __loadTexture("Textures/background4.jpg");
-        GLuint CartoonTextureHandle     = __loadTexture("Textures/house2.png");
+        GLuint NearSnowTextureHandle    = __loadTexture("Textures/nearSnow_Big.png");
+        GLuint FarSnowTextureHandle     = __loadTexture("Textures/farSnow_Big.png");
+        GLuint CartoonTextureHandle     = __loadTexture("Textures/houseWithSnow.png");
         GLuint BackgroundTextureHandle  = __loadTexture("Textures/background4.jpg");
 
         GLuint NearSnowShaderProgram    = __createProgram(SnowVertexShaderSource, SnowFragmentShaderSource);
@@ -131,8 +131,6 @@ namespace hiveVG
         m_initResources.push_back(FarSnowShaderProgram);
         m_initResources.push_back(CartoonShaderProgram);
         m_initResources.push_back(BackgroundShaderProgram);
-        m_LastFrameTime = __getCurrentTime();
-        m_CurrentFrame = 0;
     }
 
     GLuint CSequenceFrameRenderer::__compileShader(GLenum vType, const char *vShaderCode)
@@ -201,15 +199,15 @@ namespace hiveVG
 
     GLuint CSequenceFrameRenderer::__loadTexture(const std::string& vTexturePath)
     {
-        m_pTextureHandle = CTextureAsset::loadAsset(m_pApp->activity->assetManager, vTexturePath);
-        if (m_pTextureHandle == nullptr)
+        auto TextureHandle = CTextureAsset::loadAsset(m_pApp->activity->assetManager, vTexturePath);
+        if (TextureHandle == nullptr)
         {
             LOG_ERROR(HIVE_LOGTAG, "Failed to load texture");
             return 0;
         }
-
-        LOG_INFO(HIVE_LOGTAG, "Load Texture Successfully into TextureID %d", m_pTextureHandle->getTextureID());
-        return m_pTextureHandle->getTextureID();
+        LOG_INFO(HIVE_LOGTAG, "Load Texture Successfully into TextureID %d", TextureHandle->getTextureID());
+        m_pTextureHandles.push_back(TextureHandle);
+        return TextureHandle->getTextureID();
     }
 
     void CSequenceFrameRenderer::__createScreenVAO()
@@ -249,75 +247,69 @@ namespace hiveVG
     {
         glUseProgram(m_ProgramHandle);
 
-        glClearColor(1.0f,1.0f,1.0f,1.0f);
+        glClearColor(0.0f,1.0f,1.0f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        assert(m_pTextureHandle);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, m_pTextureHandle->getTextureID());
-        if(eglGetError() != EGL_SUCCESS)
-            LOG_ERROR(hiveVG::TAG_KEYWORD::RENDERER_TAG, "GL Error Code %d happens after binding texture", eglGetError());
+        glBindTexture(GL_TEXTURE_2D, m_pTextureHandles[0]->getTextureID());
+        __checkGLError();
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         auto SwapResult = eglSwapBuffers(m_Display, m_Surface);
         assert(SwapResult == EGL_TRUE);
     }
-    void CSequenceFrameRenderer::renderBlendingSnow()
+
+    void CSequenceFrameRenderer::renderBlendingSnow(const int vRow, const int vColumn)
     {
-        int ROWS = 8, COLS = 16;
         double CurrentTime = __getCurrentTime();
-        double DeltaTime = CurrentTime - m_LastFrameTime;
-        if(DeltaTime >= 1.0/24)
+        double DeltaTime = CurrentTime - m_NearLastFrameTime;
+        if(DeltaTime >= 1.0 / m_FramePerSecond)
         {
-            m_LastFrameTime = CurrentTime;
-            m_CurrentFrame = (m_CurrentFrame + 1) % (ROWS * COLS);
-            LOG_INFO(HIVE_LOGTAG,"Current Frame: %d", m_CurrentFrame);
+            m_NearLastFrameTime = CurrentTime;
+            m_NearCurrentFrame = (m_NearCurrentFrame + 1) % (vRow * vColumn);
         }
 
-        glClearColor(1.0f,1.0f,1.0f, 1.0f);
+        glClearColor(0.0f,0.0f,0.0f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+        glEnable(GL_BLEND);
 
+        //background
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(m_initResources[7]);
-//        glUniform1i(glGetUniformLocation(m_initResources[7], "quadTexture"), 0);
-
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_initResources[3]);
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        int  Row = m_CurrentFrame / COLS;
-        int  Col = m_CurrentFrame % COLS;
-        float U0 = Col / (float)COLS;
-        float V0 = Row / (float)ROWS;
-        float U1 = (Col + 1) / (float)COLS;
-        float V1 = (Row + 1) / (float)ROWS;
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        //farsnow
+        int  Row = m_NearCurrentFrame / vColumn;
+        int  Col = m_NearCurrentFrame % vColumn;
+        float U0 = Col / (float)vColumn;
+        float V0 = Row / (float)vRow;
+        float U1 = (Col + 1) / (float)vColumn;
+        float V1 = (Row + 1) / (float)vRow;
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(m_initResources[5]);
         glUniform2f(glGetUniformLocation(m_initResources[5], "uvOffset"), U0, V0);
         glUniform2f(glGetUniformLocation(m_initResources[5], "uvScale"), U1 - U0, V1 - V0);
-
-//        glUniform1i(glGetUniformLocation(m_initResources[5], "snowTexture"), 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_initResources[1]);
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        glEnable(GL_BLEND);
+        //cartoon
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(m_initResources[6]);
-//        glUniform1i(glGetUniformLocation(m_initResources[6], "quadTexture"), 0);
+        glUniform1i(glGetUniformLocation(m_initResources[6], "quadTexture"), 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_initResources[2]);
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        //nearSnow
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(m_initResources[4]);
         glUniform2f(glGetUniformLocation(m_initResources[4], "uvOffset"), U0, V0);
         glUniform2f(glGetUniformLocation(m_initResources[4], "uvScale"), U1 - U0, V1 - V0);
@@ -326,12 +318,25 @@ namespace hiveVG
         glBindTexture(GL_TEXTURE_2D, m_initResources[0]);
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+
+        auto SwapResult = eglSwapBuffers(m_Display, m_Surface);
+        assert(SwapResult == EGL_TRUE);
     }
 
     double CSequenceFrameRenderer::__getCurrentTime()     {
         struct timeval tv;
-        gettimeofday(&tv, NULL);
+        gettimeofday(&tv, nullptr);
         return tv.tv_sec + tv.tv_usec / 1000000.0;
     }
 
+    bool CSequenceFrameRenderer::__checkGLError()
+    {
+        if(eglGetError() != EGL_SUCCESS)
+        {
+            LOG_ERROR(hiveVG::TAG_KEYWORD::RENDERER_TAG, "GL Error Code %d.", eglGetError());
+            return false;
+        }
+        return true;
+    }
 }

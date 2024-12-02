@@ -27,6 +27,8 @@ namespace hiveVG
         {
             vec2 FinalUV = (TexCoord * uvScale) + uvOffset;
             vec4 SnowColor = texture(snowTexture, FinalUV);
+            if(SnowColor.a < 0.1)
+                discard;
             FragColor = SnowColor;
         }
         )fragment";
