@@ -10,7 +10,7 @@
 
 namespace hiveVG
 {
-    CSequenceFrameRenderer::CSequenceFrameRenderer(android_app *vApp)
+    CSequenceFrameRenderer::CSequenceFrameRenderer(android_app *vApp) : m_pApp(vApp)
     {
         __initRenderer();
         __createProgram();
@@ -213,7 +213,7 @@ namespace hiveVG
 //                "uniform sampler2D texture1;\n"
                 "void main() { \n"
 //                "FragColor = texture(texture1, TexCoord);\n"
-                "FragColor = vec4(1.0, 1.0, 0.2, 1.0);\n"
+                "FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
                 "}\n";
 
         GLuint VertShaderHandle = __compileShader(GL_VERTEX_SHADER, VertShaderCode);
