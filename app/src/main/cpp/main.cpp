@@ -22,7 +22,6 @@ extern "C"
                 // "game" class if that suits your needs. Remember to change all instances of userData
                 // if you change the class here as a reinterpret_cast is dangerous this in the
                 // android_main function and the APP_CMD_TERM_WINDOW handler case.
-                // vApp->userData = new hiveVG::CRenderer(vApp);
                 vApp->userData = new hiveVG::CSequenceFrameRenderer(vApp);
                 break;
             case APP_CMD_TERM_WINDOW:
@@ -62,13 +61,13 @@ extern "C"
     void android_main(struct android_app* vApp)
     {
         vApp->onAppCmd = handleCmd;
-
         // Set input event filters (set it to NULL if the app wants to process all inputs).
         // Note that for key inputs, this example uses the default default_key_filter()
         // implemented in android_native_app_glue.c.
         // Set filters for touch events in your application
         android_app_set_motion_event_filter(vApp, motion_event_filter_func);
 
+        int ROWS = 8, COLS = 16;
         do
         {
             // Process all pending events before running game logic.
@@ -104,10 +103,10 @@ extern "C"
 
             if (vApp->userData)
             {
-//                auto *pRenderer = reinterpret_cast<hiveVG::CRenderer*>(vApp->userData);
-//                pRenderer->render();
+//                hiveVG::TexturePath = "Textures/background4.jpg";
                 auto *pSeqFrameRenderer = reinterpret_cast<hiveVG::CSequenceFrameRenderer*>(vApp->userData);
-                pSeqFrameRenderer->render();
+//                pSeqFrameRenderer->render();
+                pSeqFrameRenderer->renderBlendingSnow(ROWS,COLS);
             }
         } while (!vApp->destroyRequested);
     }

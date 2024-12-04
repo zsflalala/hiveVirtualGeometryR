@@ -5,18 +5,22 @@
 #include <vector>
 #include <cassert>
 #include <android/imagedecoder.h>
-#include "stb_image.h"
+#include <android/asset_manager.h>
 #include "Common.h"
+#include "TextureAsset.h"
+#include "ShaderSource.h"
 
 namespace hiveVG
 {
+#define HIVE_LOGTAG hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG
     CSequenceFrameRenderer::CSequenceFrameRenderer(android_app *vApp) : m_pApp(vApp)
     {
+        m_initResources.clear();
         __initRenderer();
-        __createProgram();
-        __createQuadVAO();
-//        const char* TexturePath = "../assets/SnowSequenceFrame.png";
-//        __loadTexture(TexturePath);
+        __initAlgorithm();
+        __createScreenVAO();
+        m_NearLastFrameTime = __getCurrentTime();
+        m_FarLastFrameTime = __getCurrentTime();
     }
 
     CSequenceFrameRenderer::~CSequenceFrameRenderer()
@@ -39,22 +43,6 @@ namespace hiveVG
         }
         glDeleteVertexArrays(1, &m_QuadVAOHandle);
         glDeleteProgram(m_ProgramHandle);
-    }
-
-    void CSequenceFrameRenderer::render()
-    {
-        glClearColor(1.0f,0.2f,0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-//        glEnable(GL_BLEND);
-//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glUseProgram(m_ProgramHandle);
-//        glBindTexture(GL_TEXTURE_2D, m_QuadTextureHandle);
-//        glUniform1i(glGetUniformLocation(m_ProgramHandle, "texture1"), 0);
-        glBindVertexArray(m_QuadVAOHandle);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        // Present the rendered image. This is an implicit glFlush.
-        auto SwapResult = eglSwapBuffers(m_Display, m_Surface);
-        assert(SwapResult == EGL_TRUE);
     }
 
     void CSequenceFrameRenderer::__initRenderer()
@@ -122,6 +110,29 @@ namespace hiveVG
         m_Context = Context;
     }
 
+    void CSequenceFrameRenderer::__initAlgorithm()
+    {
+//        __createProgram(VertShaderCode,FragShaderCode);
+        GLuint NearSnowTextureHandle    = __loadTexture("Textures/nearSnow_Big.png");
+        GLuint FarSnowTextureHandle     = __loadTexture("Textures/farSnow_Big.png");
+        GLuint CartoonTextureHandle     = __loadTexture("Textures/houseWithSnow.png");
+        GLuint BackgroundTextureHandle  = __loadTexture("Textures/background4.jpg");
+
+        GLuint NearSnowShaderProgram    = __createProgram(SnowVertexShaderSource, SnowFragmentShaderSource);
+        GLuint FarSnowShaderProgram     = __createProgram(SnowVertexShaderSource, SnowFragmentShaderSource);
+        GLuint CartoonShaderProgram     = __createProgram(QuadVertexShaderSource, QuadFragmentShaderSource);
+        GLuint BackgroundShaderProgram  = __createProgram(QuadVertexShaderSource, QuadFragmentShaderSource);
+
+        m_initResources.push_back(NearSnowTextureHandle);
+        m_initResources.push_back(FarSnowTextureHandle);
+        m_initResources.push_back(CartoonTextureHandle);
+        m_initResources.push_back(BackgroundTextureHandle);
+        m_initResources.push_back(NearSnowShaderProgram);
+        m_initResources.push_back(FarSnowShaderProgram);
+        m_initResources.push_back(CartoonShaderProgram);
+        m_initResources.push_back(BackgroundShaderProgram);
+    }
+
     GLuint CSequenceFrameRenderer::__compileShader(GLenum vType, const char *vShaderCode)
     {
         GLuint ShaderHandle = glCreateShader(vType);
@@ -129,9 +140,9 @@ namespace hiveVG
         {
             glShaderSource(ShaderHandle, 1, &vShaderCode, nullptr);
             glCompileShader(ShaderHandle);
-            GLint Result = GL_FALSE;
-            glGetShaderiv(ShaderHandle, GL_COMPILE_STATUS, &Result);
-            if (Result == GL_FALSE)
+            GLint CompileStatus = GL_FALSE;
+            glGetShaderiv(ShaderHandle, GL_COMPILE_STATUS, &CompileStatus);
+            if (CompileStatus == GL_FALSE)
             {
                 glDeleteShader(ShaderHandle);
                 return 0;
@@ -143,35 +154,73 @@ namespace hiveVG
 
     GLuint CSequenceFrameRenderer::__linkProgram(GLuint vVertShaderHandle, GLuint vFragShaderHandle)
     {
+        assert(vVertShaderHandle != 0 && vFragShaderHandle != 0);
         GLuint ProgramHandle = glCreateProgram();
         if (ProgramHandle != 0)
         {
             glAttachShader(ProgramHandle, vVertShaderHandle);
             glAttachShader(ProgramHandle, vFragShaderHandle);
             glLinkProgram(ProgramHandle);
-            GLint Result = GL_FALSE;
-            glGetProgramiv(ProgramHandle, GL_LINK_STATUS, &Result);
-            if (Result == GL_FALSE)
+            GLint LinkStatus = GL_FALSE;
+            glGetProgramiv(ProgramHandle, GL_LINK_STATUS, &LinkStatus);
+            if (LinkStatus == GL_FALSE)
             {
+                LOG_ERROR(HIVE_LOGTAG, "Link Shader Program Failed");
                 glDeleteProgram(ProgramHandle);
                 return 0;
             }
             return ProgramHandle;
         }
+        LOG_ERROR(HIVE_LOGTAG, "Link Shader Program Failed");
+        glDeleteShader(vVertShaderHandle);
+        glDeleteShader(vFragShaderHandle);
         return 0;
     }
 
-    void CSequenceFrameRenderer::__createQuadVAO()
+    GLuint CSequenceFrameRenderer::__createProgram(const char* vVertexShaderCode, const char* vFragmentShaderCode)
     {
-        const float pVertices[] = {
-                // positions   // texCoords
-                -1.0f, -1.0f,  0.0f, 0.0f, // bottom left
-                1.0f, -1.0f,  1.0f, 0.0f, // bottom right
-                1.0f,  1.0f,  1.0f, 1.0f, // top right
-                -1.0f,  1.0f,  0.0f, 1.0f  // top left
+        GLuint VertShaderHandle = __compileShader(GL_VERTEX_SHADER, vVertexShaderCode);
+        if (VertShaderHandle == 0)
+        {
+            LOG_ERROR(HIVE_LOGTAG, "Compile VertexShader Failed");
+            return 0;
+        }
+        GLuint FragShaderHandle = __compileShader(GL_FRAGMENT_SHADER, vFragmentShaderCode);
+        if (FragShaderHandle == 0)
+        {
+            glDeleteShader(VertShaderHandle);
+            LOG_ERROR(HIVE_LOGTAG, "Compile FragmentShader Failed");
+            return 0;
+        }
+        m_ProgramHandle = __linkProgram(VertShaderHandle, FragShaderHandle);
+        LOG_INFO(HIVE_LOGTAG, "Create Shader Program Succeeded.");
+        return m_ProgramHandle;
+    }
+
+    GLuint CSequenceFrameRenderer::__loadTexture(const std::string& vTexturePath)
+    {
+        auto TextureHandle = CTextureAsset::loadAsset(m_pApp->activity->assetManager, vTexturePath);
+        if (TextureHandle == nullptr)
+        {
+            LOG_ERROR(HIVE_LOGTAG, "Failed to load texture");
+            return 0;
+        }
+        LOG_INFO(HIVE_LOGTAG, "Load Texture Successfully into TextureID %d", TextureHandle->getTextureID());
+        m_pTextureHandles.push_back(TextureHandle);
+        return TextureHandle->getTextureID();
+    }
+
+    void CSequenceFrameRenderer::__createScreenVAO()
+    {
+        const float Vertices[] = {
+                // positions              // texCoords
+                -1.0f, 1.0f, 0.0f, 0.0f, // bottom left
+                 1.0f, 1.0f, 1.0f, 0.0f, // bottom right
+                 1.0f, -1.0f, 1.0f, 1.0f, // top right
+                  -1.0f, -1.0f, 0.0f, 1.0f  // top left
         };
 
-        const unsigned int pIndices[] = {
+        const u_int Indices[] = {
                 0, 1, 2,
                 0, 2, 3
         };
@@ -182,11 +231,11 @@ namespace hiveVG
         GLuint QuadVBO, QuadEBO;
         glGenBuffers(1, &QuadVBO);
         glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(pVertices), pVertices, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_DYNAMIC_DRAW);
 
         glGenBuffers(1, &QuadEBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, QuadEBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(pIndices), pIndices, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
 
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(0);
@@ -194,64 +243,100 @@ namespace hiveVG
         glEnableVertexAttribArray(1);
     }
 
-    void CSequenceFrameRenderer::__createProgram()
+    void CSequenceFrameRenderer::render()
     {
-        const char VertShaderCode[] =
-                "#version 300 es \n"
-                "layout (location = 0) in vec2 aPos;\n"
-                "layout (location = 1) in vec2 aTexCoord;\n"
-                "out vec2 TexCoord;\n"
-                "void main() { \n"
-                "gl_Position = vec4(aPos, 0.0, 1.0);\n"
-                "TexCoord = aTexCoord;\n"
-                "}\n";
-        const char FragShaderCode[] =
-                "#version 300 es \n"
-                "precision mediump float;\n"
-                "out vec4 FragColor;\n"
-                "in vec2 TexCoord;\n"
-//                "uniform sampler2D texture1;\n"
-                "void main() { \n"
-//                "FragColor = texture(texture1, TexCoord);\n"
-                "FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
-                "}\n";
+        glUseProgram(m_ProgramHandle);
 
-        GLuint VertShaderHandle = __compileShader(GL_VERTEX_SHADER, VertShaderCode);
-        if (VertShaderHandle == 0)
-        {
-            LOG_ERROR(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Compile VertexShader Failed");
-            return;
-        }
-        GLuint FragShaderHandle = __compileShader(GL_FRAGMENT_SHADER, FragShaderCode);
-        if (FragShaderHandle == 0)
-        {
-            LOG_ERROR(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Compile FragmentShader Failed");
-            return;
-        }
-        m_ProgramHandle = __linkProgram(VertShaderHandle, FragShaderHandle);
+        glClearColor(0.0f,1.0f,1.0f,1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_pTextureHandles[0]->getTextureID());
+        __checkGLError();
+        glBindVertexArray(m_QuadVAOHandle);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        auto SwapResult = eglSwapBuffers(m_Display, m_Surface);
+        assert(SwapResult == EGL_TRUE);
     }
 
-    void CSequenceFrameRenderer::__loadTexture(const char* vTexturePath)
+    void CSequenceFrameRenderer::renderBlendingSnow(const int vRow, const int vColumn)
     {
-        //stbi_set_flip_vertically_on_load(1);
-        int Width, Height, Channels;
-        unsigned char* pData = stbi_load(vTexturePath, &Width, &Height, &Channels, 0);
-
-        if (!pData)
+        double CurrentTime = __getCurrentTime();
+        double DeltaTime = CurrentTime - m_NearLastFrameTime;
+        if(DeltaTime >= 1.0 / m_FramePerSecond)
         {
-            LOG_ERROR(hiveVG::TAG_KEYWORD::SeqFrame_RENDERER_TAG, "Failed to load texture");
-            return ;
+            m_NearLastFrameTime = CurrentTime;
+            m_NearCurrentFrame = (m_NearCurrentFrame + 1) % (vRow * vColumn);
         }
 
-        glGenTextures(1, &m_QuadTextureHandle);
-        glBindTexture(GL_TEXTURE_2D, m_QuadTextureHandle);
-        glTexImage2D(GL_TEXTURE_2D, 0, Channels == 4 ? GL_RGBA : GL_RGB, Width, Height, 0, Channels == 4 ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, pData);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        stbi_image_free(pData);
+        glClearColor(0.0f,0.0f,0.0f, 0.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glEnable(GL_BLEND);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        //background
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glUseProgram(m_initResources[7]);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_initResources[3]);
+        glBindVertexArray(m_QuadVAOHandle);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        //farsnow
+        int  Row = m_NearCurrentFrame / vColumn;
+        int  Col = m_NearCurrentFrame % vColumn;
+        float U0 = Col / (float)vColumn;
+        float V0 = Row / (float)vRow;
+        float U1 = (Col + 1) / (float)vColumn;
+        float V1 = (Row + 1) / (float)vRow;
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glUseProgram(m_initResources[5]);
+        glUniform2f(glGetUniformLocation(m_initResources[5], "uvOffset"), U0, V0);
+        glUniform2f(glGetUniformLocation(m_initResources[5], "uvScale"), U1 - U0, V1 - V0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_initResources[1]);
+        glBindVertexArray(m_QuadVAOHandle);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        //cartoon
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glUseProgram(m_initResources[6]);
+        glUniform1i(glGetUniformLocation(m_initResources[6], "quadTexture"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_initResources[2]);
+        glBindVertexArray(m_QuadVAOHandle);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        //nearSnow
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glUseProgram(m_initResources[4]);
+        glUniform2f(glGetUniformLocation(m_initResources[4], "uvOffset"), U0, V0);
+        glUniform2f(glGetUniformLocation(m_initResources[4], "uvScale"), U1 - U0, V1 - V0);
+//        glUniform1i(glGetUniformLocation(m_initResources[4], "snowTexture"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_initResources[0]);
+        glBindVertexArray(m_QuadVAOHandle);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+
+        auto SwapResult = eglSwapBuffers(m_Display, m_Surface);
+        assert(SwapResult == EGL_TRUE);
+    }
+
+    double CSequenceFrameRenderer::__getCurrentTime()     {
+        struct timeval tv;
+        gettimeofday(&tv, nullptr);
+        return tv.tv_sec + tv.tv_usec / 1000000.0;
+    }
+
+    bool CSequenceFrameRenderer::__checkGLError()
+    {
+        if(eglGetError() != EGL_SUCCESS)
+        {
+            LOG_ERROR(hiveVG::TAG_KEYWORD::RENDERER_TAG, "GL Error Code %d.", eglGetError());
+            return false;
+        }
+        return true;
     }
 }

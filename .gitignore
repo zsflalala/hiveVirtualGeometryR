@@ -31,3 +31,9 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+app/src/main/cpp/RawCode_Controller.cpp
+
+app/src/main/cpp/RawOpenGL.cpp
+
+app/src/main/assets/Textures/iwEcAqNwbmcDAQTREC4F0QspBrCKYTNC9LUjsAcyK9ALmzwCB9IxE6w0CAAJomltCgAL0gAJ1uE.png_720x720q90.jpg

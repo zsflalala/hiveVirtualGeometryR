@@ -11,6 +11,7 @@ add_library(hivevirtualgeometryr SHARED
         main.cpp
         Renderer.cpp
         SequenceFrameRenderer.cpp
+        TextureAsset.cpp
         stb_init.cpp)
 
 # Searches for a package provided by the game activity dependency
