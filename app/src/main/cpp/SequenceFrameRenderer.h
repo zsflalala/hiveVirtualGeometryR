@@ -36,10 +36,10 @@ namespace hiveVG
         EGLDisplay                      m_Display           = EGL_NO_DISPLAY;
         EGLSurface                      m_Surface           = EGL_NO_SURFACE;
         EGLContext                      m_Context           = EGL_NO_CONTEXT;
-        std::vector<GLuint> m_initResources;
-        double                  m_NearLastFrameTime = 0.0;
-        double                  m_FarLastFrameTime  = 0.0;
-        int                     m_NearCurrentFrame  = 0;
+        std::vector<GLuint>             m_initResources;
+        double                          m_NearLastFrameTime = 0.0;
+        double                          m_FarLastFrameTime  = 0.0;
+        int                             m_NearCurrentFrame  = 0;
         int                             m_FarCurrentFrame   = 0;
         const int                       m_FramePerSecond    = 60;
 
