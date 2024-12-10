@@ -5,6 +5,7 @@
 #include "Renderer.h"
 #include "SequenceFrameRenderer.h"
 #include "Common.h"
+#include <fmt/core.h>
 
 extern "C"
 {
@@ -51,6 +52,8 @@ extern "C"
 
     void android_main(struct android_app* vApp)
     {
+        LOG_INFO(fmt::info("FMT!!!!!!"));
+
         vApp->onAppCmd = handleCmd;
         // Set input event filters (set it to NULL if the app wants to process all inputs).
         // Note that for key inputs, this example uses the default default_key_filter()

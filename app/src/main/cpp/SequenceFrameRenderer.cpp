@@ -113,8 +113,8 @@ namespace hiveVG
 
     void CSequenceFrameRenderer::__initAlgorithm()
     {
-        GLuint NearSnowTextureHandle    = __loadTexture("Textures/nearSnow.png");
-        GLuint FarSnowTextureHandle     = __loadTexture("Textures/farSnow.png");
+        GLuint NearSnowTextureHandle    = __loadTexture("Textures/nearSnow_.png");
+        GLuint FarSnowTextureHandle     = __loadTexture("Textures/farSnow_.png");
         GLuint CartoonTextureHandle     = __loadTexture("Textures/houseWithSnow.png");
         GLuint BackgroundTextureHandle  = __loadTexture("Textures/background.jpg");
 
