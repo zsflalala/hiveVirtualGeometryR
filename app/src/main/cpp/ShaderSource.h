@@ -38,6 +38,9 @@ namespace hiveVG
         layout (location = 1) in vec2 aTexCoord;
 
         out vec2 TexCoord;
+//        uniform mat4 Model;
+//        uniform mat4 View;
+//        uniform mat4 Projection;
 
         void main()
         {
@@ -55,10 +58,11 @@ namespace hiveVG
 
         void main()
         {
-            vec4 CartoonColor = texture(quadTexture, TexCoord);
-            FragColor = CartoonColor;
+            vec4 QuadColor = texture(quadTexture, TexCoord);
+            FragColor = QuadColor;
         }
         )fragment";
+
     const char VertShaderCode[] = R"vertex(#version 300 es
         layout (location = 0) in vec2 inPosition;
         layout (location = 1) in vec2 inUV;
@@ -70,6 +74,7 @@ namespace hiveVG
             gl_Position = vec4(inPosition, 0.0, 1.0);
         }
         )vertex";
+
     const char FragShaderCode[] = R"fragment(#version 300 es
         precision mediump float;
 

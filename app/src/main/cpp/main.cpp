@@ -5,6 +5,7 @@
 #include "Renderer.h"
 #include "SequenceFrameRenderer.h"
 #include "Common.h"
+#include <fmt/core.h>
 
 extern "C"
 {
@@ -18,20 +19,11 @@ extern "C"
         switch (vCmd)
         {
             case APP_CMD_INIT_WINDOW:
-                // A new window is created, associate a renderer with it. You may replace this with a
-                // "game" class if that suits your needs. Remember to change all instances of userData
-                // if you change the class here as a reinterpret_cast is dangerous this in the
-                // android_main function and the APP_CMD_TERM_WINDOW handler case.
                 vApp->userData = new hiveVG::CSequenceFrameRenderer(vApp);
                 break;
             case APP_CMD_TERM_WINDOW:
-                // The window is being destroyed. Use this to clean up your userData to avoid leaking
-                // resources.
-                //
-                // We have to check if userData is assigned just in case this comes in really quickly
                 if (vApp->userData)
                 {
-                    // auto *pRenderer = reinterpret_cast<hiveVG::CRenderer*>(vApp->userData);
                     auto *pCSequenceFrameRenderer = reinterpret_cast<hiveVG::CSequenceFrameRenderer*>(vApp->userData);
                     vApp->userData = nullptr;
                     delete pCSequenceFrameRenderer;
@@ -60,6 +52,8 @@ extern "C"
 
     void android_main(struct android_app* vApp)
     {
+        LOG_INFO(fmt::info("FMT!!!!!!"));
+
         vApp->onAppCmd = handleCmd;
         // Set input event filters (set it to NULL if the app wants to process all inputs).
         // Note that for key inputs, this example uses the default default_key_filter()
@@ -103,9 +97,7 @@ extern "C"
 
             if (vApp->userData)
             {
-//                hiveVG::TexturePath = "Textures/background4.jpg";
                 auto *pSeqFrameRenderer = reinterpret_cast<hiveVG::CSequenceFrameRenderer*>(vApp->userData);
-//                pSeqFrameRenderer->render();
                 pSeqFrameRenderer->renderBlendingSnow(ROWS,COLS);
             }
         } while (!vApp->destroyRequested);

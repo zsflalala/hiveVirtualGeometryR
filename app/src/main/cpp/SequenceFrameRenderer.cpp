@@ -9,6 +9,7 @@
 #include "Common.h"
 #include "TextureAsset.h"
 #include "ShaderSource.h"
+#include "stb_image.h"
 
 namespace hiveVG
 {
@@ -20,7 +21,7 @@ namespace hiveVG
         __initAlgorithm();
         __createScreenVAO();
         m_NearLastFrameTime = __getCurrentTime();
-        m_FarLastFrameTime = __getCurrentTime();
+        m_FarLastFrameTime  = __getCurrentTime();
     }
 
     CSequenceFrameRenderer::~CSequenceFrameRenderer()
@@ -112,11 +113,10 @@ namespace hiveVG
 
     void CSequenceFrameRenderer::__initAlgorithm()
     {
-//        __createProgram(VertShaderCode,FragShaderCode);
-        GLuint NearSnowTextureHandle    = __loadTexture("Textures/nearSnow_Big.png");
-        GLuint FarSnowTextureHandle     = __loadTexture("Textures/farSnow_Big.png");
+        GLuint NearSnowTextureHandle    = __loadTexture("Textures/nearSnow_.png");
+        GLuint FarSnowTextureHandle     = __loadTexture("Textures/farSnow_.png");
         GLuint CartoonTextureHandle     = __loadTexture("Textures/houseWithSnow.png");
-        GLuint BackgroundTextureHandle  = __loadTexture("Textures/background4.jpg");
+        GLuint BackgroundTextureHandle  = __loadTexture("Textures/background.jpg");
 
         GLuint NearSnowShaderProgram    = __createProgram(SnowVertexShaderSource, SnowFragmentShaderSource);
         GLuint FarSnowShaderProgram     = __createProgram(SnowVertexShaderSource, SnowFragmentShaderSource);
@@ -273,17 +273,16 @@ namespace hiveVG
             m_NearCurrentFrame = (m_NearCurrentFrame + 1) % (vRow * vColumn);
         }
 
-        glClearColor(0.0f,0.0f,0.0f, 0.0f);
+        glClearColor(0.2f,0.3f,0.2f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        glEnable(GL_BLEND);
 
         //background
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(m_initResources[7]);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_initResources[3]);
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
         //farsnow
         int  Row = m_NearCurrentFrame / vColumn;
         int  Col = m_NearCurrentFrame % vColumn;
@@ -291,6 +290,7 @@ namespace hiveVG
         float V0 = Row / (float)vRow;
         float U1 = (Col + 1) / (float)vColumn;
         float V1 = (Row + 1) / (float)vRow;
+        glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(m_initResources[5]);
         glUniform2f(glGetUniformLocation(m_initResources[5], "uvOffset"), U0, V0);
@@ -308,6 +308,7 @@ namespace hiveVG
         glBindTexture(GL_TEXTURE_2D, m_initResources[2]);
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
         //nearSnow
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         glUseProgram(m_initResources[4]);
@@ -319,12 +320,12 @@ namespace hiveVG
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-
         auto SwapResult = eglSwapBuffers(m_Display, m_Surface);
         assert(SwapResult == EGL_TRUE);
     }
 
-    double CSequenceFrameRenderer::__getCurrentTime()     {
+    double CSequenceFrameRenderer::__getCurrentTime()
+    {
         struct timeval tv;
         gettimeofday(&tv, nullptr);
         return tv.tv_sec + tv.tv_usec / 1000000.0;
