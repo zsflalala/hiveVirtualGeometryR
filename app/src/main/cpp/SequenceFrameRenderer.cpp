@@ -114,23 +114,23 @@ namespace hiveVG
     void CSequenceFrameRenderer::__initAlgorithm()
     {
         GLuint NearSnowTextureHandle    = __loadTexture("Textures/nearSnow.png");
-        GLuint FarSnowTextureHandle     = __loadTexture("Textures/farSnow.png");
-        GLuint CartoonTextureHandle     = __loadTexture("Textures/houseWithSnow.png");
-        GLuint BackgroundTextureHandle  = __loadTexture("Textures/background.jpg");
+        GLuint FarSnowTextureHandle     = __loadTexture("Textures/snowScene.png");
+//        GLuint CartoonTextureHandle     = __loadTexture("Textures/houseWithSnow.png");
+//        GLuint BackgroundTextureHandle  = __loadTexture("Textures/background.jpg");
 
         GLuint NearSnowShaderProgram    = __createProgram(SnowVertexShaderSource, SnowFragmentShaderSource);
         GLuint FarSnowShaderProgram     = __createProgram(SnowVertexShaderSource, SnowFragmentShaderSource);
-        GLuint CartoonShaderProgram     = __createProgram(QuadVertexShaderSource, QuadFragmentShaderSource);
-        GLuint BackgroundShaderProgram  = __createProgram(QuadVertexShaderSource, QuadFragmentShaderSource);
+//        GLuint CartoonShaderProgram     = __createProgram(QuadVertexShaderSource, QuadFragmentShaderSource);
+//        GLuint BackgroundShaderProgram  = __createProgram(QuadVertexShaderSource, QuadFragmentShaderSource);
 
         m_initResources.push_back(NearSnowTextureHandle);
         m_initResources.push_back(FarSnowTextureHandle);
-        m_initResources.push_back(CartoonTextureHandle);
-        m_initResources.push_back(BackgroundTextureHandle);
+//        m_initResources.push_back(CartoonTextureHandle);
+//        m_initResources.push_back(BackgroundTextureHandle);
         m_initResources.push_back(NearSnowShaderProgram);
         m_initResources.push_back(FarSnowShaderProgram);
-        m_initResources.push_back(CartoonShaderProgram);
-        m_initResources.push_back(BackgroundShaderProgram);
+//        m_initResources.push_back(CartoonShaderProgram);
+//        m_initResources.push_back(BackgroundShaderProgram);
     }
 
     GLuint CSequenceFrameRenderer::__compileShader(GLenum vType, const char *vShaderCode)
@@ -271,49 +271,67 @@ namespace hiveVG
         {
             m_NearLastFrameTime = CurrentTime;
             m_NearCurrentFrame = (m_NearCurrentFrame + 1) % (vRow * vColumn);
+            if (m_NearCurrentFrame == 0) m_IsFinished = true;
         }
 
-        glClearColor(0.2f,0.3f,0.2f, 0.0f);
+        double FarDeltaTime = CurrentTime - m_FarLastFrameTime;
+        if(FarDeltaTime >= 1.0 / m_FarFramePerSecond)
+        {
+            m_FarLastFrameTime = CurrentTime;
+            m_FarCurrentFrame = (m_FarCurrentFrame + 1) % (vRow * vColumn);
+            if (m_FarCurrentFrame == 0) m_IsFinished = true;
+        }
+
+        glClearColor(0.1f,0.1f,0.1f, 0.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         //background
-        glUseProgram(m_initResources[7]);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, m_initResources[3]);
-        glBindVertexArray(m_QuadVAOHandle);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+//        glUseProgram(m_initResources[7]);
+//        glActiveTexture(GL_TEXTURE0);
+//        glBindTexture(GL_TEXTURE_2D, m_initResources[3]);
+//        glBindVertexArray(m_QuadVAOHandle);
+//        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         //farsnow
-        int  Row = m_NearCurrentFrame / vColumn;
-        int  Col = m_NearCurrentFrame % vColumn;
-        float U0 = Col / (float)vColumn;
-        float V0 = Row / (float)vRow;
-        float U1 = (Col + 1) / (float)vColumn;
-        float V1 = (Row + 1) / (float)vRow;
+        if (m_IsFinished) m_FarCurrentFrame = vRow * vColumn - 1;
+        int  FarRow = m_FarCurrentFrame / vColumn;
+        int  FarCol = m_FarCurrentFrame % vColumn;
+        float FarU0 = FarCol / (float)vColumn;
+        float FarU1 = (FarCol + 1) / (float)vColumn;
+        float FarV0 = FarRow / (float)vRow;
+        float FarV1 = (FarRow + 1) / (float)vRow;
+
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        glUseProgram(m_initResources[5]);
-        glUniform2f(glGetUniformLocation(m_initResources[5], "uvOffset"), U0, V0);
-        glUniform2f(glGetUniformLocation(m_initResources[5], "uvScale"), U1 - U0, V1 - V0);
+        glUseProgram(m_initResources[3]);
+        glUniform2f(glGetUniformLocation(m_initResources[3], "uvOffset"), FarU0, FarV0);
+        glUniform2f(glGetUniformLocation(m_initResources[3], "uvScale"), FarU1 - FarU0, FarV1 - FarV0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_initResources[1]);
         glBindVertexArray(m_QuadVAOHandle);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         //cartoon
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glUseProgram(m_initResources[6]);
-        glUniform1i(glGetUniformLocation(m_initResources[6], "quadTexture"), 0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, m_initResources[2]);
-        glBindVertexArray(m_QuadVAOHandle);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+//        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+//        glUseProgram(m_initResources[6]);
+//        glUniform1i(glGetUniformLocation(m_initResources[6], "quadTexture"), 0);
+//        glActiveTexture(GL_TEXTURE0);
+//        glBindTexture(GL_TEXTURE_2D, m_initResources[2]);
+//        glBindVertexArray(m_QuadVAOHandle);
+//        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         //nearSnow
+        int  Row = m_NearCurrentFrame / vColumn;
+        int  Col = m_NearCurrentFrame % vColumn;
+        float U0 = Col / (float)vColumn;
+        float U1 = (Col + 1) / (float)vColumn;
+        float V0 = Row / (float)vRow;
+        float V1 = (Row + 1) / (float)vRow;
+
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        glUseProgram(m_initResources[4]);
-        glUniform2f(glGetUniformLocation(m_initResources[4], "uvOffset"), U0, V0);
-        glUniform2f(glGetUniformLocation(m_initResources[4], "uvScale"), U1 - U0, V1 - V0);
+        glUseProgram(m_initResources[3]);
+        glUniform2f(glGetUniformLocation(m_initResources[3], "uvOffset"), U0, V0);
+        glUniform2f(glGetUniformLocation(m_initResources[3], "uvScale"), U1 - U0, V1 - V0);
 //        glUniform1i(glGetUniformLocation(m_initResources[4], "snowTexture"), 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_initResources[0]);
